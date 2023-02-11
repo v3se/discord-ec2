@@ -3,7 +3,7 @@ resource "aws_instance" "autoec2-server" {
   instance_type = var.ec2_instance_type
   associate_public_ip_address = true
   tags = {
-    Name = "autoec2-server"
+    Name = "satisfactory-server"
   }
   lifecycle {
     ignore_changes = [associate_public_ip_address]

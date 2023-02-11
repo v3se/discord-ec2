@@ -21,7 +21,7 @@ def lambda_handler(event, context):
             response = ec2.describe_instances(
                 Filters=[
                     {
-                        'Name': 'tag:Name', 'Values':['autoec2-server'],
+                        'Name': 'tag:Name', 'Values':[event["game_name"]],
                     },
                 ],
             )          

@@ -12,6 +12,10 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 PUBLIC_KEY = os.environ['DISCORD_PUBLIC_KEY'] # found on Discord Application -> General Information page
 AWS_REGION = os.environ['AWS_PRIMARY_REGION']
+INSTANCE_TAGS = {
+  'satisfactory': 'satisfactory-server',
+  'valheim': 'valheim-server'
+}
 
 def lambda_handler(event, context):
   try:
@@ -55,26 +59,28 @@ def lambda_handler(event, context):
   except:
     raise
 
-def lambda_child_check_status(body):
+def lambda_child_check_status(body, game_name):
     # Invoke child lambda function for performing backend tasks
     # Discord expects response within 3s. Therefore a follow up message is necessary in this case
     # to report pub ip address
     lambda_client = boto3_client('lambda')
     #Parse interaction token and app id from body
-    msg = {"application_id": body["application_id"], "interaction_token": body["token"]}
+    msg = {"application_id": body["application_id"], "interaction_token": body["token"], "game_name":game_name}
     invoke_response = lambda_client.invoke(FunctionName="autoec2-child-status",
                                            InvocationType='Event',
                                            Payload=json.dumps(msg))
     logger.info(f"Invocation response: {invoke_response}")
 
 
-def start_autoec2_server(body):
+def start_autoec2_server(body, game_name):
     # Do a dryrun first to verify permissions
+    game_name = INSTANCE_TAGS[game_name]
     ec2 = boto3.client('ec2', region_name=AWS_REGION)
+    # Gets the instance id by tag
     response = ec2.describe_instances(
         Filters=[
             {
-                'Name': 'tag:Name', 'Values':['autoec2-server'],
+                'Name': 'tag:Name', 'Values':[game_name],
             },
         ],
     )
@@ -105,13 +111,13 @@ def start_autoec2_server(body):
         logger.info(response)
         
         parse_id = response["StartingInstances"][0]["InstanceId"]
-        lambda_child_check_status(body)
+        lambda_child_check_status(body, game_name)
         return {
         'statusCode': 200,
         'body': json.dumps({
             'type': 4,
             'data': {
-            'content': "Yes Sir! Starting autoec2 server for you... Reporting the IP address shortly. Here's the EC2 ID: " + parse_id,
+            'content': "Yes Sir! Starting {} server for you... Reporting the IP address shortly. Here's the EC2 ID: {}".format(game_name,parse_id),
             }
         })
         }
@@ -143,7 +149,9 @@ def command_handler(body):
     }
 
   if command == 'start_satisfactory':
-    return start_autoec2_server(body)
+    return start_autoec2_server(body,'satisfactory')
+  if command == 'start_valheim':
+    return start_autoec2_server(body,'valheim')
 
 
   else:
