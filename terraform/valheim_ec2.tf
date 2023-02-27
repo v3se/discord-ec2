@@ -3,6 +3,10 @@ resource "aws_key_pair" "valheim-keypair" {
   public_key = file("~/.ssh/valheim.pub")
 }
 
+resource "aws_eip" "valheim-eip" {
+  instance = aws_instance.valheim-server.id
+}
+
 resource "aws_instance" "valheim-server" {
   ami           = var.ec2_ami_id
   key_name      = aws_key_pair.valheim-keypair.key_name
@@ -94,4 +98,12 @@ resource "aws_security_group_rule" "valheim_egress" {
   cidr_blocks       = ["0.0.0.0/0"]
   ipv6_cidr_blocks = ["::/0"]
   security_group_id = aws_security_group.valheim.id
+}
+
+resource "aws_route53_record" "valheim-dns-record" {
+  zone_id = "Z101725331HY9MIDLV5DM"
+  name    = "valheim.whado.net"
+  type    = "A"
+  ttl     = 300
+  records = [aws_eip.valheim-eip.public_ip]
 }
