@@ -34,7 +34,7 @@ def lambda_handler(event, context):
             time.sleep(2)
 
     # Send payload back to discord using a webhook, app id and interaction token for auth
-    payload = {"content": "Here's the IP Address of the server: " +  ip_addr + ". Happy gaming!"}
+    payload = {"content": "Here's the IP Address of the server: " +  ip_addr + ". Connect to the server using it, or better, use DNS valheim.whado.net ;)"}
     url = base_url + "/" + event["application_id"] + "/" + event["interaction_token"]
     r = requests.post(url, headers=headers, json=payload)
     print(r.text)
