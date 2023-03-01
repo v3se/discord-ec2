@@ -3,7 +3,7 @@ import os
 import logging
 import boto3
 from boto3 import client as boto3_client
-from datetime import datetime
+from datetime import datetime, timedelta
 from botocore.exceptions import ClientError
 from nacl.signing import VerifyKey
 from nacl.exceptions import BadSignatureError
@@ -73,11 +73,15 @@ def lambda_child_check_status(body, game_name):
 
 def get_cost_usage(game_name):
     client = boto3.client('ce')
-    
+    start_date = datetime.today().replace(day=1).strftime("%Y-%m-%d")
+    end_date = datetime.today().strftime("%Y-%m-%d")
+    if start_date == end_date:
+        #The filter does not work if the start date is the same as the end date. This subracts 1 day from the start date if that's the case"
+        start_date = (datetime.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m-%d")
     cost = client.get_cost_and_usage(
     TimePeriod={
-        'Start': datetime.today().replace(day=1).strftime("%Y-%m-%d"),
-        'End': datetime.today().strftime("%Y-%m-%d")
+        'Start': start_date,
+        'End': end_date
     },
     Filter={
         'Tags': {
