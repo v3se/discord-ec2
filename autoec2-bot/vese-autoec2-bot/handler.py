@@ -34,6 +34,8 @@ def lambda_handler(event, context):
     try:
       verify_key.verify(message.encode(), signature=bytes.fromhex(signature))
     except BadSignatureError:
+      logger.info(message)
+      logger.info(PUBLIC_KEY)
       logger.error('invalid request signature')
       return {
         'statusCode': 401,

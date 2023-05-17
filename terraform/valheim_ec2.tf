@@ -7,10 +7,21 @@ resource "aws_eip" "valheim-eip" {
   instance = aws_instance.valheim-server.id
 }
 
+resource "aws_ebs_volume" "valheim-volume" {
+  availability_zone = "eu-north-1b"
+  size              = 16
+}
+
+resource "aws_volume_attachment" "ebs_att" {
+  device_name = "/dev/xvda"
+  volume_id   = aws_ebs_volume.valheim-volume.id
+  instance_id = aws_instance.valheim-server.id
+}
+
 resource "aws_instance" "valheim-server" {
   ami           = var.ec2_ami_id
   key_name      = aws_key_pair.valheim-keypair.key_name
-  instance_type = "c5.xlarge"
+  instance_type = "t3.large"
   associate_public_ip_address = true
   tags = {
     Name = "valheim-server"
