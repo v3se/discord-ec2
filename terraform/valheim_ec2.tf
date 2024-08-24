@@ -7,22 +7,17 @@ resource "aws_eip" "valheim-eip" {
   instance = aws_instance.valheim-server.id
 }
 
-resource "aws_ebs_volume" "valheim-volume" {
-  availability_zone = "eu-north-1b"
-  size              = 16
-}
-
-resource "aws_volume_attachment" "ebs_att" {
-  device_name = "/dev/xvda"
-  volume_id   = aws_ebs_volume.valheim-volume.id
-  instance_id = aws_instance.valheim-server.id
-}
-
 resource "aws_instance" "valheim-server" {
   ami           = var.ec2_ami_id
   key_name      = aws_key_pair.valheim-keypair.key_name
+  availability_zone = "eu-north-1a"
   instance_type = "t3.large"
   associate_public_ip_address = true
+  root_block_device {
+    volume_size = 20  # Specify the size of the root volume in GB
+    volume_type = "gp2"  # Optional: Specify the volume type (gp2, io1, etc.)
+    delete_on_termination = false  # Delete the volume when the instance is terminated
+  }
   tags = {
     Name = "valheim-server"
   }

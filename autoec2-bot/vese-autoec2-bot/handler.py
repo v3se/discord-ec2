@@ -29,7 +29,7 @@ def lambda_handler(event, context):
 
     verify_key = VerifyKey(bytes.fromhex(PUBLIC_KEY))
 
-    message = timestamp + json.dumps(body, separators=(',', ':'))
+    message = timestamp + event['body']
     
     try:
       verify_key.verify(message.encode(), signature=bytes.fromhex(signature))
@@ -105,7 +105,7 @@ def get_cost_usage(game_name):
 def start_autoec2_server(body, game_name):
     # Do a dryrun first to verify permissions
     game_name = INSTANCE_TAGS[game_name]
-    cost = get_cost_usage(game_name)
+    #cost = get_cost_usage(game_name)
     ec2 = boto3.client('ec2', region_name=AWS_REGION)
     # Gets the instance id by tag
     response = ec2.describe_instances(
@@ -126,7 +126,7 @@ def start_autoec2_server(body, game_name):
       'body': json.dumps({
           'type': 4,
           'data': {
-          'content': "Server is already running at: {} . Monthly cost: {} USD".format(public_ip,cost),
+          'content': "Server is already running at: {}".format(public_ip),
           }
       })
       }
@@ -148,7 +148,7 @@ def start_autoec2_server(body, game_name):
         'body': json.dumps({
             'type': 4,
             'data': {
-            'content': "Yes Sir! Starting {} server for you... Reporting the IP address shortly. Here's the EC2 ID: {}. Monthly cost: {} USD".format(game_name,parse_id,cost),
+            'content': "Yes Sir! Starting {} server for you... Reporting the IP address shortly. Here's the EC2 ID: {}".format(game_name,parse_id),
             }
         })
         }
