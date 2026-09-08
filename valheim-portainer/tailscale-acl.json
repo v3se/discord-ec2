@@ -1,0 +1,49 @@
+// Tailscale ACL policy for the tailnet running the Valheim server.
+// Apply this in the Tailscale admin console: Access Controls -> edit file.
+{
+    // Declare static groups of users. Use autogroups for all users or users with a specific role.
+    "groups": {
+        // Replace with your friends' actual Tailscale login emails (must be members of this tailnet).
+        "group:friends": ["friend1@example.com", "friend2@example.com"],
+    },
+    "tagOwners": {
+        "tag:management":    ["autogroup:admin"],
+        "tag:app":           ["autogroup:admin"],
+        // Only admins can assign this tag, and only the Valheim tailscale
+        // sidecar container should ever carry it (via --advertise-tags).
+        "tag:valheim-server": ["autogroup:admin"],
+    },
+
+    // Define access control lists for users, groups, autogroups, tags,
+    // Tailscale IP addresses, and subnet ranges.
+    "acls": [
+        // Admins keep full access to everything. This replaces the old
+        // allow all wildcard rule so it does not also grant friends
+        // access to everything below.
+        {"action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"]},
+
+        // Friends can reach only the Valheim server, only on the game ports.
+        // Nothing else in the tailnet is visible to them.
+        {"action": "accept", "src": ["group:friends"], "dst": ["tag:valheim-server:2456-2457"]},
+    ],
+
+    // Define users and devices that can use Tailscale SSH.
+    "ssh": [
+        {
+            "action": "check",
+            "src":    ["autogroup:member"],
+            "dst":    ["autogroup:self"],
+            "users":  ["autogroup:nonroot", "root"],
+        },
+    ],
+
+    // Regression tests, validated by Tailscale on every ACL save.
+    // Update the src email to match a real friend once one is enrolled.
+    "tests": [
+        {
+            "src": "friend1@example.com",
+            "accept": ["tag:valheim-server:2456"],
+            "deny": ["tag:management:*", "tag:app:*"],
+        },
+    ],
+}

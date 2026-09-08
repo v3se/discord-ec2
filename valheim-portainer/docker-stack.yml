@@ -1,0 +1,98 @@
+version: "3.8"
+
+services:
+  valheim:
+    # Actively maintained fork of lloesche/valheim-server-docker.
+    # Pinned to a specific release; bump deliberately, don't float on `latest`.
+    # If ghcr.io pulls are blocked by stale registry credentials on the node,
+    # fall back to the Docker Hub digest pin (see README note below).
+    image: ghcr.io/community-valheim-tools/valheim-server:1.1.0
+    environment:
+      SERVER_NAME: ${VALHEIM_SERVER_NAME}
+      WORLD_NAME: ${VALHEIM_WORLD_NAME}
+      SERVER_PASS: ${VALHEIM_SERVER_PASS}
+      SERVER_PUBLIC: "false"
+      TZ: "Europe/Helsinki"
+      # built-in backups (zips the world dir into /config/backups)
+      BACKUPS_CRON: "0 */6 * * *"      # every 6h
+      BACKUPS_MAX_AGE: "3"             # days
+      BACKUPS_MAX_COUNT: "12"
+      BACKUPS_DIRECTORY: "/config/backups"
+    volumes:
+      - /opt/valheim/config:/config
+      - /opt/valheim/data:/opt/valheim
+    ports:
+      # host-mode publish, effectively only reachable via the tailscale
+      # sidecar's loopback forward (see below) once the node firewall
+      # blocks these ports from the public internet
+      - target: 2456
+        published: 2456
+        protocol: udp
+        mode: host
+      - target: 2457
+        published: 2457
+        protocol: udp
+        mode: host
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.valheim == true
+      restart_policy:
+        condition: any
+      update_config:
+        order: stop-first
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+        reservations:
+          cpus: "2"
+          memory: 4G
+    stop_grace_period: 2m
+
+  valheim-tailscale:
+    image: tailscale/tailscale:latest
+    hostname: valheim-server
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY}
+      TS_HOSTNAME: valheim-server
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_USERSPACE: "false"
+      TS_ACCEPT_DNS: "false"
+      TS_DEST_IP: 127.0.0.1
+      TS_EXTRA_ARGS: "--advertise-tags=tag:valheim-server"
+    volumes:
+      - /opt/valheim/tailscale-state:/var/lib/tailscale
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.valheim == true
+      restart_policy:
+        condition: any
+
+  # Optional: off-node backup copy. Requires an rclone.conf with a configured
+  # remote dropped into /opt/valheim/rclone/ before deploying.
+  # valheim-backup-sync:
+  #   image: rclone/rclone:latest
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command: >
+  #     "while true; do
+  #       rclone sync /backups remote:your-bucket/valheim-backups --min-age 5m;
+  #       sleep 3600;
+  #     done"
+  #   volumes:
+  #     - /opt/valheim/config/backups:/backups:ro
+  #     - /opt/valheim/rclone:/config
+  #   deploy:
+  #     replicas: 1
+  #     placement:
+  #       constraints:
+  #         - node.labels.valheim == true
